@@ -35,11 +35,15 @@
 		- Теперь идентификатор BHOP для VIP указывается в конфиге (sm_checkinfo_vipbhop)
 		- Фикс загрузки конфига
 		- Другие мелкие фиксы
-		
+
+	1.5 - Убрана "лишняя" отладочная надпись BHOP
+		- Более в конфиге указывать название способности из VIP не требуется (жестко прописаны две используемые на серверах)
+		- Теперь боту GOTV периодически выписывается информация об игроках
+		- Загрузка "на горячую" отображает верный статус Steam/NoSteam
    ================================================================================================== */
 
 #pragma dynamic 131072 
-#pragma semicolon 1
+
 
 #include <sdktools_stringtables>
 #include <colors>
@@ -49,6 +53,7 @@
 
 #tryinclude <adminmenu>
 
+#pragma semicolon 1
 #pragma newdecls required
 
 
@@ -63,14 +68,14 @@ TopMenu	g_hTopMenu;
 
 Handle g_Cvarsid = INVALID_HANDLE;
 Handle g_Cvaripid = INVALID_HANDLE;
-Handle g_Cvarvb = INVALID_HANDLE;
+//Handle g_Cvarvb = INVALID_HANDLE;
 //Хэндлы для конваров
 
 
 public Plugin myinfo = 
 {
 	name		= "CheckInfo",
-	version		= "1.4",
+	version		= "1.5",
 	description	= "Get some players' info. Получение определённой информации об игроках.",
 	author		= "NickFox",
 	url			= "https://vk.com/nf_dev"
@@ -79,19 +84,18 @@ public Plugin myinfo =
 public void OnPluginStart()
 {	
 	g_Cvarsid = CreateConVar("sm_checkinfo_steamid", "1", "SteamID-Type in !check/!checkall [1 - STEAM_1:1:1234 | 2 - [U:1:1234] | 3 - 76512345678900000]", _, true, 1.0, true, 3.0);
-	//AddChangeHook(OnSteamTypeChange);
 	g_Cvaripid = CreateConVar("sm_checkinfo_viewipidtype", "1", "SteamID/IP-address in !checkall [1 - IP | 2 - SteamID]", _, true, 1.0, true, 2.0);
-	//AddChangeHook(OnIPIDTypeChange);
-	g_Cvarvb = CreateConVar("sm_checkinfo_vipbhop", "BHOP", "BHOP's ID for VIP-core [String value]");
-	//AddChangeHook(OnVIPBHOPChange);
+	//g_Cvarvb = CreateConVar("sm_checkinfo_vipbhop", "BHOP", "BHOP's ID for VIP-core [String value]");
 	
 	HookConVarChange(g_Cvarsid,OnSteamTypeChange);
 	HookConVarChange(g_Cvaripid,OnIPIDTypeChange);
-	HookConVarChange(g_Cvarvb,OnVIPBHOPChange);
+	//HookConVarChange(g_Cvarvb,OnVIPBHOPChange);
 	// Создаём КВары для настройки и обработчики их изменения
 	
 	RegConsoleCmd("sm_check", Cmd_Check);
 	RegConsoleCmd("sm_checkall", Cmd_CheckAll);
+	
+	HookEvent("round_end", OnRoundEnd, EventHookMode_PostNoCopy);
 	// Регистрация команд
 	
 	if(GetEngineVersion() == Engine_CSGO)
@@ -113,8 +117,20 @@ public void OnPluginStart()
 	}
 
 	AutoExecConfig(true, "sm_checkinfo");
+	
+	for(int i = 1; i < MAXPLAYERS; i++) if(IsClientConnected(i)) OnClientPutInServer(i);
+	
 	//ChangeSteamIDType();
 	CF_Init();
+}
+
+Action OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	for(int i = 1; i < MAXPLAYERS; i++) if(IsClientSourceTV(i))
+	{
+		Cmd_CheckAll(i, 0); 
+		break;
+	}
 }
 
 public void OnConfigsExecuted()
@@ -122,7 +138,7 @@ public void OnConfigsExecuted()
 	ChangeSteamIDType(GetConVarInt(g_Cvarsid));
 	IPIDType_ID = GetConVarInt(g_Cvaripid);
 	//g_Cvarvb.GetString(VIP_BHOP,sizeof(VIP_BHOP));	  
-	GetConVarString(g_Cvarvb,VIP_BHOP,sizeof(VIP_BHOP));
+	//GetConVarString(g_Cvarvb,VIP_BHOP,sizeof(VIP_BHOP));
 
 
 }
@@ -147,10 +163,12 @@ void OnSteamTypeChange(ConVar convar, const char[] oldValue, const char[] newVal
 	ChangeSteamIDType(convar.IntValue);	
 }
 
+/*
 void OnVIPBHOPChange(ConVar convar, const char[] oldValue, const char[] newValue){
 	// Если значение переменной "sm_checkinfo_vipbhop" изменилось - подхватить его
 	convar.GetString(VIP_BHOP,sizeof(VIP_BHOP));	
 }
+*/
 
 public void OnLibraryAdded(const char[] szName) 
 {   
@@ -170,9 +188,6 @@ public void OnLibraryRemoved(const char[] szName)
 public void OnClientPutInServer(int client){
 	CF_PlayerConnected(client); // Для перехвата события библиотекой
 }
-
-
-
 
 
 void DisplayCheckInfoMenu(int client) // Функция показа меню с выбором игрока
@@ -259,7 +274,7 @@ public Action PrintInfo(int i, int client)
 		CPrintToChat(client, "{olive}BHOP - %s", buffer); // Вывод данных о BHOP
 	}
 	CPrintToChat(client, polosa); // Полоса
-	PrintToChat(client,VIP_BHOP);
+	//PrintToChat(client,VIP_BHOP);
 }
 
 public Action Cmd_Check(int client, int args) // sm_check | !check
@@ -279,7 +294,7 @@ public Action Cmd_CheckAll(int client, int args) // sm_checkall | !checkall
 	if(!client) return Plugin_Handled;
 
 	//Проверка наличия админ-флага(по умолчанию - b). При отсутствии флага у игрока выведет сообщение о несуществующей команде
-	if(!CheckCommandAccess(client, "BypassPremiumCheck", ADMFLAG_GENERIC, true))
+	if(!IsClientSourceTV(client) && !CheckCommandAccess(client, "BypassPremiumCheck", ADMFLAG_GENERIC, true))
 		return Plugin_Continue;   
 
 	for(int i= 1; i <= MaxClients; i++) if(IsClientInGame(i) && !IsFakeClient(i)) GetPlayerInfo(client, i);
