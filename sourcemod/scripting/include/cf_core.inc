@@ -59,7 +59,7 @@ bool bVAC[65]; // Для хранения VAC-статуса
 bool bClientSteam[65]; // Для хранения состояния Steam/NoSteam
 
 // Идентификатор BHOP в VIP-системе. Если отличается от имеющегося - изменить
-char VIP_BHOP[64] = "BHOP1";
+//char VIP_BHOP[64] = "BHOP";
 
 #define STEAMWORKS_ON()	(CanTestFeatures() && GetFeatureStatus(FeatureType_Native, "SteamWorks_CreateHTTPRequest")	== FeatureStatus_Available)
 
@@ -108,10 +108,10 @@ public void CF_PlayerConnected(int client)
 
 public int CF_CheckBhop(int i)
 {
-	if(IsVIPExist&&VIP_IsClientFeatureUse(i, VIP_BHOP)) //Включен ли Бхоп в меню VIP 
+	if(IsVIPExist && (VIP_IsClientFeatureUse(i, "BHOP") || VIP_IsClientFeatureUse(i, "BunnyHop"))) //Включен ли Бхоп в меню VIP 
 			return 2;
 
-	if(IsShopExist&&Shop_IsClientItemToggled(i, g_iID)) //Включен ли Бхоп в меню SHOP 
+	if(IsShopExist && Shop_IsClientItemToggled(i, g_iID)) //Включен ли Бхоп в меню SHOP 
 		return 1;
 
 	return 0;
